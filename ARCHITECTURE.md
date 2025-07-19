@@ -401,6 +401,42 @@ class AuthViewModel extends ChangeNotifier {
 }
 ```
 
+##### Otimização de Commands
+
+**Commands que executam somente uma linha podem referenciar o UseCase/Repository diretamente**, eliminando métodos intermediários desnecessários:
+
+```dart
+class AuthViewModel extends ChangeNotifier {
+  final AuthRepository _authRepository;
+  final LoginUseCase _loginUseCase;
+  final GetUserUsecase _getUserUsecase;
+
+  User? _loggedUser;
+  User? get loggedUser => _loggedUser;
+
+  // ✅ FORMA OTIMIZADA - Referência direta aos UseCases/Repositories
+  late final loginUseCase = Command1(_loginUseCase.login);
+  late final getUserUseCase = Command0(_getUserUsecase.get);        // Direto no UseCase
+  late final logout = Command0(_authRepository.logout);           // Direto no Repository
+
+  AuthViewModel(
+    this._authRepository,
+    this._loginUseCase,
+    this._getUserUsecase,
+  ) {
+    _authRepository.addListener(() {
+      _loggedUser = _authRepository.user;
+      notifyListeners();
+    });
+  }
+  
+  // ❌ Métodos intermediários removidos:
+  // - _verifyLogingState() → substituído por referência direta
+  // - _logout() → substituído por referência direta
+}
+}
+```
+
 **Vantagens dos Commands:**
 - ✅ **Estado automático**: `running`, `result`, `error`, `completed`
 - ✅ **Reatividade**: Extends `ChangeNotifier` - UI reage automaticamente
