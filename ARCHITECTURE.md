@@ -1,965 +1,1022 @@
-# Documentação de Arquitetura - App MP Prof
+# 🏗️ Arquitetura do Projeto - App Architecture (Google/Flutter)
 
-## 📋 Índice
-1. [Visão Geral](#visão-geral)
-2. [Arquitetura do Sistema](#arquitetura-do-sistema)
-3. [Estrutura de Pastas](#estrutura-de-pastas)
-4. [Camadas da Aplicação](#camadas-da-aplicação)
-5. [Fluxo de Dados](#fluxo-de-dados)
-6. [Padrões e Convenções](#padrões-e-convenções)
-7. [Gerenciamento de Estado](#gerenciamento-de-estado)
-8. [Injeção de Dependências](#injeção-de-dependências)
-9. [Autenticação e Autorização](#autenticação-e-autorização)
-10. [Tratamento de Erros](#tratamento-de-erros)
-11. [Testes](#testes)
-12. [Refatorações Implementadas](#refatorações-implementadas)
+## 📋 Visão Geral
 
----
+Este projeto implementa a **App Architecture** proposta pela equipe do Google/Flutter, utilizando o padrão **MVVM (Model-View-ViewModel)** para garantir:
 
-## 🎯 Visão Geral
+- ✅ **Modularização** clara por features
+- ✅ **Reatividade** com ViewModels
+- ✅ **Fonte única da verdade** com repositórios
+- ✅ **Reutilização** com UseCases
+- ✅ **Testabilidade** de todas as camadas
 
-### Propósito
-O **App MP Prof** é um aplicativo móvel desenvolvido em Flutter para profissionais de saúde, permitindo o gerenciamento de agendamentos, visualização de timelines de pacientes e funcionalidades administrativas.
+## 🎯 Tecnologias Principais
 
-### Tecnologias Principais
-- **Frontend**: Flutter 3.32.7 / Dart 3.8.1
-- **Gerenciamento de Estado**: ViewModels com ReactiveBuilder e Command Pattern
-- **Navegação**: GoRouter 16.0.0 com injeção de dependências via rotas
-- **HTTP Client**: Dio 5.8.0 centralizado no MedplusApi
-- **Banco Local**: ObjectBox 4.3.0
-- **Injeção de Dependência**: GetIt 8.0.3 com isolamento entre camadas
-- **Armazenamento Local**: SharedPreferences 2.5.3
+| Categoria | Tecnologia | Versão | Propósito |
+|-----------|------------|--------|-----------|
+| **Framework** | Flutter | 3.32.7 | UI Framework |
+| **Language** | Dart | 3.8.1 | Linguagem de programação |
+| **Estado** | ChangeNotifier + Commands | Built-in | ViewModels reativos |
+| **HTTP** | Dio | 5.8.0+1 | Cliente HTTP |
+| **Storage** | SharedPreferences | 2.5.3 | Armazenamento local |
+| **Navegação** | GoRouter | 16.0.0 | Roteamento declarativo |
+| **DI** | GetIt | 8.0.3 | Injeção de dependência |
+| **Async** | Result<T> | Custom | Tratamento de erros |
 
----
+## 🏛️ Arquitetura App Architecture (Google/Flutter)
 
-## 🏗️ Arquitetura do Sistema
-
-### Clean Architecture + MVVM Modernizada
-O projeto segue os princípios da **Clean Architecture** combinada com **MVVM (Model-View-ViewModel)** com as seguintes modernizações:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    UI LAYER                                 │
-│  ┌─────────────┐  ┌─────────────┐                          │
-│  │   Widgets   │  │ ViewModels  │                          │
-│  │ (Stateful/  │  │ (Commands+  │                          │
-│  │ ReactiveB)  │  │    DI)      │                          │
-│  └─────────────┘  └─────────────┘                          │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                   DOMAIN LAYER                             │
-│  ┌─────────────┐  ┌─────────────┐                          │
-│  │   Models    │  │  UseCases   │                          │
-│  │ (Business   │  │(Conditional)│                          │
-│  │  Entities)  │  │             │                          │
-│  └─────────────┘  └─────────────┘                          │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                    DATA LAYER                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │Repositories │  │   Services  │  │    ApiModels        │  │
-│  │(Implements) │  │             │  │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                 EXTERNAL LAYER                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │External APIs│  │SharedPrefs  │  │  Other Services     │  │
-│  │             │  │             │  │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "UI Layer"
+        A[Widgets by Feature] --> B[ViewModels by Feature]
+    end
+    
+    subgraph "Domain Layer"
+        B --> C[Models]
+        B --> D[UseCases]
+    end
+    
+    subgraph "Data Layer"
+        D --> E[Repositories]
+        E --> F[Services]
+    end
+    
+    subgraph "Utils"
+        G[Commands]
+        H[Result]
+    end
+    
+    F --> I[External APIs]
+    F --> J[SharedPreferences Storage]
 ```
 
----
-
-## 📁 Estrutura de Pastas
+## 📁 Estrutura do Projeto
 
 ```
 lib/
-├── ui/                            # UI Layer
-│   ├── widgets/                   # Widgets reutilizáveis e páginas
-│   └── viewmodels/                # ViewModels com Commands
-├── domain/                        # Domain Layer
-│   ├── models/                    # Modelos de negócio
-│   └── usecases/                  # UseCases (quando necessário)
-├── data/                          # Data Layer
-│   ├── repositories/              # Implementações de repositórios
-│   ├── services/                  # Serviços (MedplusApi, LocalStorage)
-│   └── models/                    # ApiModels para serialização
-├── utils/                         # Commands e Result (utilitários)
-├── routes/                        # Configuração de rotas
-└── dependencies/                  # Injeção de dependências
+├── utils/                    # 🛠️ UTILS - Utilitários e recursos compartilhados
+│   ├── command.dart         # Commands para operações
+│   └── result.dart          # Result para tratamento de erros
+│
+├── data/                     # 💾 DATA - Implementações concretas
+│   ├── repositories/        # Implementações concretas dos repositórios
+│   │   ├── agendamentos/    # 📅 Feature: Agendamentos
+│   │   │   ├── agendamentos_repository.dart        # Interface abstrata
+│   │   │   └── agendamentos_repository_remote.dart # Implementação concreta
+│   │   ├── auth/            # 🔐 Feature: Autenticação
+│   │   │   ├── auth_repository.dart                # Interface abstrata
+│   │   │   └── auth_repository_remote.dart         # Implementação concreta
+│   │   ├── clinicas/        # 🏥 Feature: Clínicas
+│   │   │   ├── clinicas_repository.dart            # Interface abstrata
+│   │   │   └── clinicas_repository_remote.dart     # Implementação concreta
+│   │   └── ...              # Outras features
+│   └── services/            # Serviços externos (API, DB, Storage)
+│
+├── domain/                   # 🏢 DOMAIN - Regras de negócio
+│   ├── models/              # Objetos de negócio
+│   └── usecases/            # Casos de uso específicos
+│
+└── ui/                       # 🎨 UI - Interface do usuário
+    └── [feature]/
+        ├── viewmodels/      # ViewModels reativos
+        └── widgets/         # Componentes UI
 ```
 
----
+## 🔧 Camadas da Arquitetura
 
-## 🔄 Camadas da Aplicação
+### 🛠️ Utils Layer
+**Responsabilidade**: Utilitários e recursos compartilhados
 
-### 1. **UI Layer**
-**Responsabilidade**: Interface do usuário e interação
+#### Commands
+Commands encapsulam operações assíncronas com estado (loading, resultado, erro) de forma reativa. São instanciados diretamente nos ViewModels para máxima simplicidade.
 
-**Componentes**:
-- **Widgets**: Páginas e componentes reutilizáveis (`LoginPage`, `AppDrawer`, `LoginForm`)
-- **ViewModels**: Gerenciam estado e lógica de apresentação (`AuthViewModel`, `AgendamentosViewModel`)
-
-**Exemplo**:
 ```dart
-class AuthViewModel extends ChangeNotifier {
-  final IAuthLogic _authLogic;
+// command.dart - Implementação base
+abstract class Command<T> extends ChangeNotifier {
+  bool _running = false;
+  bool get running => _running;
   
-  // Commands for reactive operations - initialized inline
-  late final loginCommand = Command1<void, LoginDto>(_login);
-  late final logoutCommand = Command0<void>(_logout);
+  Result<T>? _result;
+  Result<T>? get result => _result;
   
-  Future<void> _login(LoginDto loginDto) async {
-    final result = await _authLogic.login(loginDto);
-    result.fold(
-      (user) => /* Handle success */,
-      (error) => /* Handle error */,
+  bool get error => _result is Error;
+  bool get completed => _result is Ok;
+  
+  Future<void> _execute(CommandAction0<T> action) async {
+    if (_running) return;
+    _result = null;
+    _running = true;
+    notifyListeners();
+    
+    try {
+      _result = await action();
+    } finally {
+      _running = false;
+      notifyListeners();
+    }
+  }
+}
+
+// Command sem parâmetros
+class Command0<T> extends Command<T> {
+  final CommandAction0<T> action;
+  Command0(this.action);
+  
+  Future<void> execute() async {
+    await _execute(action);
+  }
+}
+
+// Command com 1 parâmetro
+class Command1<T, A> extends Command<T> {
+  final CommandAction1<T, A> action;
+  Command1(this.action);
+  
+  Future<void> execute(A params) async {
+    await _execute(() => action(params));
+  }
+}
+```
+
+#### Exemplos de Uso dos Commands
+
+**Exemplo prático - ClinicasViewModel:**
+
+```dart
+class ClinicasViewModel extends ChangeNotifier {
+  final ClinicaRepository _clinicaRepository;
+  final GetClinicasUseCase _getClinicasUseCase;
+  final SelecionarClinicaUseCase _selecionarClinicaUseCase;
+
+  // Estado reativo do repositório
+  List<ClinicaModel> get clinicas => _clinicaRepository.clinicas;
+  ClinicaModel? get clinicaSelecionada => _clinicaRepository.clinicaSelecionada;
+
+  // ✅ Commands instanciados diretamente - máxima simplicidade
+  late final getClinicasCommand = Command0(_getClinicas);                    // Sem parâmetros
+  late final selecionarClinicaCommand = Command1<void, ClinicaModel>(        // Com 1 parâmetro
+    _selecionarClinica,
+  );
+  late final limparClinicasCommand = Command0(_clinicaRepository.limparClinicas); // Direto no Repository
+
+  ClinicasViewModel(
+    this._clinicaRepository,
+    this._getClinicasUseCase,
+    this._selecionarClinicaUseCase,
+  ) {
+    // Escutar mudanças no repositório para reatividade automática
+    _clinicaRepository.addListener(() => notifyListeners());
+  }
+
+  // Métodos privados para Commands que precisam de lógica adicional
+  Future<Result<List<ClinicaModel>>> _getClinicas() async {
+    return await _getClinicasUseCase.execute();
+  }
+
+  Future<Result<void>> _selecionarClinica(ClinicaModel clinica) async {
+    return await _selecionarClinicaUseCase.execute(clinica);
+  }
+}
+```
+
+**Como usar Commands na UI:**
+
+```dart
+class ClinicasPage extends StatelessWidget {
+  final ClinicasViewModel viewModel;
+  
+  const ClinicasPage({required this.viewModel});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          // Botão para carregar clínicas
+          ListenableBuilder(
+            listenable: viewModel.getClinicasCommand,
+            builder: (context, child) {
+              final command = viewModel.getClinicasCommand;
+              
+              return ElevatedButton(
+                onPressed: command.running 
+                  ? null                          // Desabilita durante loading
+                  : () => command.execute(),      // Executa comando sem parâmetros
+                child: command.running 
+                  ? CircularProgressIndicator()
+                  : Text('Carregar Clínicas'),
+              );
+            },
+          ),
+          
+          // Lista de clínicas com seleção
+          Expanded(
+            child: ListenableBuilder(
+              listenable: Listenable.merge([
+                viewModel,                        // Estado do ViewModel
+                viewModel.selecionarClinicaCommand, // Estado do Command
+              ]),
+              builder: (context, child) {
+                final clinicas = viewModel.clinicas;
+                final selectCommand = viewModel.selecionarClinicaCommand;
+                
+                return ListView.builder(
+                  itemCount: clinicas.length,
+                  itemBuilder: (context, index) {
+                    final clinica = clinicas[index];
+                    
+                    return ListTile(
+                      title: Text(clinica.clinicaNome),
+                      selected: clinica.id == viewModel.clinicaSelecionada?.id,
+                      onTap: selectCommand.running
+                        ? null                              // Desabilita durante loading
+                        : () => selectCommand.execute(clinica), // Executa com parâmetro
+                      trailing: selectCommand.running
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : null,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          
+          // Listener para tratamento de erros e navegação
+          ListenableBuilder(
+            listenable: viewModel.selecionarClinicaCommand,
+            builder: (context, child) {
+              final command = viewModel.selecionarClinicaCommand;
+              
+              // Reagir ao resultado do comando
+              if (command.completed) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Clínica selecionada com sucesso!')),
+                  );
+                });
+              }
+              
+              if (command.error) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erro: ${command.result?.asError.error}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                });
+              }
+              
+              return SizedBox.shrink(); // Widget invisível apenas para listener
+            },
+          ),
+        ],
+      ),
     );
   }
+}
+```
+
+**Estados disponíveis nos Commands:**
+
+```dart
+// Estado do Command
+command.running        // true durante execução
+command.completed      // true quando terminou com sucesso  
+command.error          // true quando terminou com erro
+command.result         // Result<T>? com o resultado (Ok ou Error)
+
+// Exemplo de uso dos estados
+if (command.running) {
+  return CircularProgressIndicator();
+}
+
+if (command.completed) {
+  final result = command.result as Ok<List<ClinicaModel>>;
+  return Text('${result.value.length} clínicas carregadas');
+}
+
+if (command.error) {
+  final error = command.result as Error;
+  return Text('Erro: ${error.error}', style: TextStyle(color: Colors.red));
+}
+```
+
+#### Result
+Tratamento funcional de erros sem exceptions:
+
+```dart
+// result.dart - Sealed class para resultados
+sealed class Result<T> {
+  const Result();
+  factory Result.ok(T value) = Ok._;
+  factory Result.error(Exception error) = Error._;
+}
+
+final class Ok<T> extends Result<T> {
+  final T value;
+}
+
+final class Error<T> extends Result<T> {
+  final Exception error;
+}
+
+// Uso com pattern matching
+switch (result) {
+  case Ok<User>():
+    print('Sucesso: ${result.value}');
+  case Error():
+    print('Erro: ${result.error}');
+}
+```
+
+### 💾 Data Layer
+**Responsabilidade**: Fonte única da verdade e acesso a dados
+
+#### Repositories (Implementações Concretas)
+Repositories são organizados por feature, cada um em sua própria pasta com interface e implementação concreta. Todos estendem `ChangeNotifier` para notificar mudanças de estado automaticamente.
+
+**Estrutura Modular por Feature:**
+```
+data/repositories/
+├── agendamentos/
+│   ├── agendamentos_repository.dart        # Interface abstrata
+│   └── agendamentos_repository_remote.dart # Implementação concreta
+├── auth/
+│   ├── auth_repository.dart                # Interface abstrata  
+│   └── auth_repository_remote.dart         # Implementação concreta
+└── clinicas/
+    ├── clinicas_repository.dart            # Interface abstrata
+    └── clinicas_repository_remote.dart     # Implementação concreta
+```
+
+**Exemplo - Agendamentos Repository:**
+
+```dart
+// agendamentos/agendamentos_repository.dart - Interface abstrata
+abstract class AgendamentosRepository extends ChangeNotifier {
+  List<Agendamento> get agendamentos;
+  DateTime? get dataSelecionada;
   
-  Future<void> _logout() async {
-    // Logout logic
-  }
-}
-```
-
-#### **Command Pattern**
-Commands encapsulam operações assíncronas com estado reativo:
-
-**Tipos de Commands**:
-- `Command0<T>`: Sem parâmetros - `Command0<void>(_method)`
-- `Command1<T,A>`: Um parâmetro - `Command1<List<Data>, String>(_method)`
-- Para múltiplos parâmetros: usar DTOs/records
-
-**Exemplo de uso**:
-```dart
-// No ViewModel
-late final loadDataCommand = Command1<List<Item>, int>(_loadData);
-
-// No Widget  
-ReactiveBuilder<MyViewModel>(
-  notifier: viewModel,
-  builder: (context, vm) {
-    if (vm.loadDataCommand.running) return CircularProgressIndicator();
-    if (vm.loadDataCommand.error) return ErrorWidget();
-    return ListView(children: vm.items.map(ItemWidget.new).toList());
-  },
-)
-
-// Executar comando
-viewModel.loadDataCommand.execute(userId);
-```
-
-### 2. **Domain Layer**
-**Responsabilidade**: Regras de negócio e modelos da aplicação
-
-**Componentes**:
-- **Models**: Objetos de negócio (`User`, `Agendamento`, `Paciente`)
-- **UseCases**: Casos de uso específicos quando necessário (conforme regras estabelecidas)
-
-**Exemplo**:
-```dart
-// Model de domínio
-class User {
-  final int id;
-  final String nome;
-  final String email;
-  
-  User({required this.id, required this.nome, required this.email});
+  Future<Result<List<Agendamento>>> getAgendamentosDoDia(DateTime data, int clinicaId);
+  Future<Result<void>> atualizarDataSelecionada(DateTime data);
+  Future<Result<void>> limparAgendamentos();
 }
 
-// UseCase apenas quando necessário (múltiplos repos, lógica complexa, reutilização)
-class ProcessarAgendamentoCompletoUseCase {
-  final AgendamentosRepository _agendamentosRepo;
-  final PacientesRepository _pacientesRepo;
-  
-  Future<Result<AgendamentoCompleto>> execute(int id) async {
-    // Combina dados de múltiplos repositórios
-  }
-}
-```
+// agendamentos/agendamentos_repository_remote.dart - Implementação concreta
+class AgendamentosRepositoryRemote extends ChangeNotifier implements AgendamentosRepository {
+  final ApiClient _medplusApi;
 
-### 3. **Data Layer**
-**Responsabilidade**: Acesso e manipulação de dados
+  // Estado interno
+  List<Agendamento> _agendamentos = [];
+  DateTime? _dataSelecionada;
 
-**Componentes**:
-- **Repositories**: Implementações concretas das interfaces de acesso a dados
-- **Services**: Serviços que se comunicam com APIs externas, SharedPreferences e outros recursos
-- **ApiModels**: Modelos específicos para serialização/deserialização de dados da API
-
-**Exemplo**:
-```dart
-// Repository implementação
-class AuthRepository implements IAuthRepository {
-  final MedplusApi _medplusApi;
-  final LocalStorageService _localStorage;
-  
-  Future<Result<User>> login(LoginDto loginDto) async {
-    final result = await _medplusApi.login(loginDto);
-    // Processar resposta e retornar modelo de domínio
-  }
-}
-
-// Service que se comunica com externos
-class MedplusApi {
-  final Dio _dio;
-  
-  Future<Result<LoginResponse>> login(LoginDto loginDto) async {
-    // Comunicação com API externa
-  }
-}
-
-// ApiModel para serialização
-class LoginResponse {
-  final String accessToken;
-  final String refreshToken;
-  final UserApiModel user;
-  
-  factory LoginResponse.fromJson(Map<String, dynamic> json) => // ...
-}
-```
-
-### 4. **External Layer**
-**Responsabilidade**: Recursos externos e infraestrutura
-
-**Componentes**:
-- **External APIs**: APIs REST externas
-- **SharedPreferences**: Armazenamento local de configurações
-- **Other Services**: Banco de dados local, cache, etc.
-
-**Exemplo**:
-```dart
-// Comunicação com API externa
-final response = await http.post('https://api.medplus.com/login');
-
-// Armazenamento local
-await SharedPreferences.getInstance().setString('token', accessToken);
-
-// Banco local
-final box = Hive.box('agendamentos');
-```
-
----
-
-## 📊 Fluxo de Dados
-
-### Fluxo de Autenticação
-```mermaid
-sequenceDiagram
-    participant UI as LoginPage
-    participant Controller as AuthController
-    participant Logic as AuthLogic
-    participant Service as HttpClientService
-    participant Storage as LocalStorage
-    participant API as Backend API
-
-    UI->>Controller: login(credentials)
-    Controller->>Logic: login(loginModel)
-    Logic->>Service: post(/auth/login)
-    Service->>API: HTTP Request
-    API-->>Service: Response + Tokens
-    Service-->>Logic: LoginResponse
-    Logic->>Storage: saveTokens(access, refresh)
-    Logic-->>Controller: Success(User)
-    Controller-->>UI: LoggedInState
-```
-
-### Fluxo de Refresh Token
-```mermaid
-sequenceDiagram
-    participant Interceptor as AuthInterceptor
-    participant Logic as AuthLogic
-    participant Storage as LocalStorage
-    participant API as Backend API
-
-    Interceptor->>Logic: refreshToken()
-    Logic->>Storage: getRefreshToken()
-    Storage-->>Logic: refreshToken
-    Logic->>API: post(/auth/refresh-token)
-    API-->>Logic: New Tokens
-    Logic->>Storage: updateTokens()
-    Logic-->>Interceptor: newAccessToken
-```
-
----
-
-## 📐 Padrões e Convenções
-
-### 1. **Result Pattern**
-Utilização do padrão Result para tratamento de erros:
-
-```dart
-// Usando result_dart
-Future<Result<User, HandledException>> login() async {
-  try {
-    final user = await api.login();
-    return Success(user);
-  } catch (e) {
-    return Failure(HandledException(e.message));
-  }
-}
-```
-
-### 2. **State Pattern**
-Estados bem definidos para cada controller:
-
-```dart
-abstract class BaseState {}
-class InitialState extends BaseState {}
-class LoadingState extends BaseState {}
-class ErrorState extends BaseState {
-  final String message;
-  ErrorState(this.message);
-}
-class LoggedInState extends BaseState {
-  final User user;
-  LoggedInState(this.user);
-}
-```
-
-### 3. **Nomenclatura**
-- **Classes**: PascalCase (`AuthController`, `LoginPage`)
-- **Métodos/Variáveis**: camelCase (`getUserData`, `isLoading`)
-- **Constantes**: UPPER_SNAKE_CASE (`API_BASE_URL`)
-- **Arquivos**: snake_case (`auth_controller.dart`)
-
----
-
-## 🔄 Gerenciamento de Estado
-
-### StateNotifier Pattern
-Implementação customizada inspirada no Riverpod:
-
-```dart
-abstract class StateNotifier<T> extends ChangeNotifier {
-  T _state;
-  
-  T get state => _state;
-  
-  void update(T newState) {
-    _state = newState;
-    notifyListeners();
-  }
-}
-```
-
-### Fluxo de Estado
-1. **UI** chama método no **Controller**
-2. **Controller** atualiza estado para `LoadingState`
-3. **Controller** chama **Logic/UseCase**
-4. **Logic** processa e retorna resultado
-5. **Controller** atualiza estado baseado no resultado
-
----
-
-## 💉 Injeção de Dependências
-
-### GetIt Configuration
-Sistema centralizado de DI usando GetIt:
-
-```dart
-Future<void> setupInjector(ApiConfig apiConfig) async {
-  i.addSingleton<ApiConfig>(apiConfig);
-  await _injectServices(apiConfig);
-  await _injectRepositories();
-  await _injectLogic();
-  await _injectControllers();
-  await _injectUseCases();
-}
-```
-
-### Ordem de Injeção
-1. **Services** (HttpClient, LocalStorage)
-2. **Repositories** (Data access)
-3. **Logic** (Business logic)
-4. **Controllers** (ViewModels)
-5. **UseCases** (Specific operations)
-
-### Resolução de Dependência Circular
-Problema comum resolvido com Dio básico:
-
-```dart
-// Evita dependência circular entre AuthLogic e HttpClient
-Dio _buildBasicDio(ApiConfig apiConfig) {
-  final dio = Dio();
-  dio.interceptors.add(InterceptorsWrapper(
-    onRequest: (options, handler) async {
-      final token = await localStorage.getAccessToken();
-      if (token != null) {
-        options.headers['Authorization'] = 'Bearer $token';
-      }
-      handler.next(options);
-    },
-  ));
-  return dio;
-}
-```
-
----
-
-## 🔐 Autenticação e Autorização
-
-### JWT Token Management
-Sistema completo de gerenciamento de tokens:
-
-**Armazenamento Seguro**:
-```dart
-abstract class ILocalStorage {
-  Future<void> setAccessToken(String token);
-  Future<void> setRefreshToken(String refreshToken);
-  Future<String?> getAccessToken();
-  Future<String?> getRefreshToken();
-  Future<void> clearTokens();
-}
-```
-
-**Refresh Automático**:
-```dart
-class AuthInterceptor extends Interceptor {
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401) {
-      final refreshResult = await authLogic.refreshToken();
-      // Retry request with new token
+  List<Agendamento> get agendamentos => _agendamentos;
+
+  @override
+  DateTime? get dataSelecionada => _dataSelecionada;
+
+  AgendamentosRepositoryRemote(this._medplusApi);
+
+  @override
+  Future<Result<List<Agendamento>>> getAgendamentosDoDia(DateTime data, int clinicaId) async {
+    final result = await _medplusApi.getAgendamentosDoDia(data: data, clinicaId: clinicaId);
+    
+    switch (result) {
+      case Ok<List<Agendamento>>():
+        _agendamentos = result.value;
+        notifyListeners(); // Notifica mudança de estado
+        return Result.ok(result.value);
+      case Error():
+        return result;
+    }
+  }
+
+  @override
+  Future<Result<void>> atualizarDataSelecionada(DateTime data) async {
+    _dataSelecionada = data;
+    notifyListeners();
+    return Result.ok(null);
+  }
+}
+```
+
+**Exemplo - Auth Repository:**
+
+```dart
+// auth/auth_repository.dart - Interface abstrata  
+abstract class AuthRepository extends ChangeNotifier {
+  User? get user;
+  Future<Result<LoginResponse>> login(LoginDto loginDto);
+  Future<Result<void>> saveUser(String token);
+  Future<Result<User>> get();
+  Future<Result<void>> logout();
+}
+
+// auth/auth_repository_remote.dart - Implementação concreta
+class AuthRepositoryRemote extends ChangeNotifier implements AuthRepository {
+  final ApiClient _medplusApi;
+  final SharedPreferencesService _preferences;
+
+  @override
+  User? get user => _user;
+  User? _user;
+
+  AuthRepositoryRemote(this._medplusApi, this._preferences);
+
+  @override
+  Future<Result<LoginResponse>> login(LoginDto loginDto) async {
+    final result = await _medplusApi.login(loginDto);
+    
+    switch (result) {
+      case Ok<LoginResponse>():
+        // Salvar tokens e usuário no SharedPreferences
+        await _preferences.saveString(
+          LocalStorageConstants.userToken,
+          result.value.usuario.token,
+        );
+        await _preferences.saveJson(
+          LocalStorageConstants.loggedUser,
+          result.value.usuario.toJson(),
+        );
+        
+        _user = result.value.usuario;
+        notifyListeners(); // Notifica mudança de estado
+        
+        return Result.ok(result.value);
+      default:
+        return result;
+    }
+  }
+
+  @override
+  Future<Result<User>> get() async {
+    final result = await _preferences.getJson(LocalStorageConstants.loggedUser);
+    
+    switch (result) {
+      case Ok<Map<String, dynamic>>():
+        final userResult = User.fromJson(result.value);
+        _user = userResult;
+        notifyListeners();
+        return Result.ok(userResult);
+      case Error():
+        return Result.error(result.error);
     }
   }
 }
 ```
 
-### Proteção de Rotas
-Sistema de redirecionamento baseado em estado de autenticação:
+#### Services
+Lidam com dados externos ao Flutter/Dart:
+
+- **API Calls**: `MedplusApi` com `Result<T>`
+- **SharedPreferences**: `SharedPreferencesService` com métodos tipados
+- **Código Nativo**: Chamadas para plataforma
 
 ```dart
-Future<String?> _redirect(BuildContext context, GoRouterState state) async {
-  final loggedIn = injector<AuthRepository>().user != null;
+class MedplusApi {
+  final Dio _dio;
   
-  if (!loggedIn && !isPublicRoute(state.matchedLocation)) {
-    return AppRoutes.login;
+  const MedplusApi({required Dio dio}) : _dio = dio;
+  
+  Future<Result<LoginResponse>> login(LoginDto loginDto) async {
+    final result = await _dio.post("/auth/login", data: loginDto.toJson());
+    
+    if (result.statusCode == 200) {
+      return Result.ok(LoginResponse.fromJson(result.data["data"]));
+    }
+    
+    return Result.error(Exception(result.data["message"]));
+  }
+}
+
+class SharedPreferencesService {
+  final SharedPreferences _sharedPreferences;
+  
+  SharedPreferencesService(this._sharedPreferences);
+  
+  Future<Result<void>> saveJson(String key, Map<String, dynamic> json) async {
+    try {
+      await _sharedPreferences.setString(key, jsonEncode(json));
+      return Result.ok(null);
+    } on Exception catch (error) {
+      return Result.error(error);
+    }
   }
   
-  return null;
+  Future<Result<Map<String, dynamic>>> getJson(String key) async {
+    try {
+      final string = _sharedPreferences.getString(key);
+      if (string == null) {
+        return Result.error(Exception("Chave $key não encontrada"));
+      }
+      final Map<String, dynamic> decodedJson = jsonDecode(string);
+      return Result.ok(decodedJson);
+    } on Exception catch (error) {
+      return Result.error(error);
+    }
+  }
 }
 ```
 
----
+### 🏢 Domain Layer
+**Responsabilidade**: Regras de negócio e contratos
 
-## ⚠️ Tratamento de Erros
+#### Models
+Objetos que representam a regra de negócio:
 
-### Hierarquia de Exceções
 ```dart
-abstract class AppException implements Exception {
-  final String message;
-  AppException(this.message);
-}
-
-class HandledException extends AppException {
-  HandledException(super.message);
-}
-
-class UnhandledException extends AppException {
-  UnhandledException(super.message);
-}
-
-class ApiException extends HandledException {
-  final int statusCode;
-  ApiException(super.message, this.statusCode);
+class User {
+  final String id;
+  final String name;
+  final String email;
+  final String? accessToken;
+  final String? refreshToken;
+  
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.accessToken,
+    this.refreshToken,
+  });
 }
 ```
 
-### Error Boundaries
-Tratamento em camadas:
+#### UseCases
+**Quando usar**: Regra de negócio complexa, múltiplos repositórios, reutilização
 
-1. **UI Layer**: Exibe mensagens de erro amigáveis
-2. **Controller Layer**: Converte exceções em estados
-3. **Logic Layer**: Trata erros de negócio
-4. **Service Layer**: Trata erros de comunicação
+```dart
+class LoginUseCase {
+  final AuthRepository _authRepository;
+  
+  LoginUseCase(this._authRepository);
+  
+  Future<Result<LoginResponse>> login(LoginDto loginDto) async {
+    // 1. Validar dados
+    if (loginDto.email.isEmpty || loginDto.password.isEmpty) {
+      return Result.error(Exception('Email e senha são obrigatórios'));
+    }
+    
+    // 2. Fazer login via repository
+    final result = await _authRepository.login(loginDto);
+    
+    // 3. Repository já salva automaticamente os dados
+    // 4. Repository já notifica mudanças via ChangeNotifier
+    
+    return result;
+  }
+}
+```
 
----
+### 🎨 UI Layer
+**Responsabilidade**: Modularização por features
 
-## 🧪 Testes
+#### ViewModels (Reatividade)
+ViewModels utilizam **Commands** para encapsular operações com estado reativo automático.
+
+```dart
+class AuthViewModel extends ChangeNotifier {
+  final IAuthLogic _authLogic;
+  final AuthRepository _authRepository;
+  final LoginUseCase _loginUseCase;
+  final GetUserUsecase _getUserUsecase;
+
+  User? _loggedUser;
+  User? get loggedUser => _loggedUser;
+
+  // Commands instanciados diretamente - forma mais simples possível
+  late final loginUseCase = Command1(_loginUseCase.login);
+  late final getUserUseCase = Command0(_verifyLogingState);
+  late final logout = Command0(_logout);
+
+  AuthViewModel(
+    this._authRepository,
+    this._authLogic,
+    this._loginUseCase,
+    this._getUserUsecase,
+  ) {
+    // Escutar mudanças no repositório
+    _authRepository.addListener(() {
+      _loggedUser = _authRepository.user;
+      notifyListeners();
+    });
+  }
+
+  // Métodos privados chamados pelos commands
+  Future<Result<User>> _verifyLogingState() async {
+    final result = await _getUserUsecase.get();
+    
+    switch (result) {
+      case Ok<User>():
+        _loggedUser = result.value;
+        notifyListeners();
+        return Result.ok(result.value);
+      case Error():
+        return result;
+    }
+  }
+
+  Future<Result<void>> _logout() async {
+    return await _authRepository.logout();
+  }
+}
+```
+
+##### Otimização de Commands
+
+**Commands que executam somente uma linha podem referenciar o UseCase/Repository diretamente**, eliminando métodos intermediários desnecessários:
+
+```dart
+class AuthViewModel extends ChangeNotifier {
+  final AuthRepository _authRepository;
+  final LoginUseCase _loginUseCase;
+  final GetUserUsecase _getUserUsecase;
+
+  User? _loggedUser;
+  User? get loggedUser => _loggedUser;
+
+  // ✅ FORMA OTIMIZADA - Referência direta aos UseCases/Repositories
+  late final loginUseCase = Command1(_loginUseCase.login);
+  late final getUserUseCase = Command0(_getUserUsecase.get);        // Direto no UseCase
+  late final logout = Command0(_authRepository.logout);           // Direto no Repository
+
+  AuthViewModel(
+    this._authRepository,
+    this._loginUseCase,
+    this._getUserUsecase,
+  ) {
+    _authRepository.addListener(() {
+      _loggedUser = _authRepository.user;
+      notifyListeners();
+    });
+  }
+  
+  // ❌ Métodos intermediários removidos:
+  // - _verifyLogingState() → substituído por referência direta
+  // - _logout() → substituído por referência direta
+}
+}
+```
+
+**Vantagens dos Commands:**
+- ✅ **Estado automático**: `running`, `result`, `error`, `completed`
+- ✅ **Reatividade**: Extends `ChangeNotifier` - UI reage automaticamente
+- ✅ **Simplicidade**: Instanciação direta no ViewModel
+- ✅ **Tipagem**: Suporte completo a generics
+- ✅ **Proteção**: Evita execução paralela da mesma operação
+
+#### Widgets
+Widgets escutam os Commands do ViewModel para reagir a mudanças de estado.
+
+```dart
+class LoginPage extends StatelessWidget {
+  final AuthViewModel authViewModel;
+  
+  const LoginPage({required this.authViewModel});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          // Campos de email e password
+          EmailField(),
+          PasswordField(),
+          
+          // Botão que executa o command
+          ListenableBuilder(
+            listenable: authViewModel.loginUseCase,
+            builder: (context, child) {
+              final command = authViewModel.loginUseCase;
+              
+              return ElevatedButton(
+                onPressed: command.running 
+                  ? null 
+                  : () => command.execute(LoginParams(email, password)),
+                child: command.running 
+                  ? CircularProgressIndicator()
+                  : Text('Login'),
+              );
+            },
+          ),
+          
+          // Listener para navegação e erros
+          ListenableBuilder(
+            listenable: authViewModel.loginUseCase,
+            builder: (context, child) {
+              final command = authViewModel.loginUseCase;
+              
+              // Reagir ao resultado
+              if (command.completed) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  context.go('/home');
+                });
+              }
+              
+              if (command.error) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(command.result!.asError.error.toString())),
+                  );
+                });
+              }
+              
+              return SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+**Como usar Commands na UI:**
+- ✅ **ListenableBuilder**: Para reagir às mudanças do Command
+- ✅ **command.running**: Para mostrar loading
+- ✅ **command.execute()**: Para executar a operação
+- ✅ **command.completed**: Para detectar sucesso
+- ✅ **command.error**: Para detectar erro
+- ✅ **command.result**: Para acessar o resultado
+
+## 🔄 Fluxo de Dados
+
+### Fluxo com Commands
+```mermaid
+sequenceDiagram
+    participant UI as Widget
+    participant CMD as Command
+    participant VM as ViewModel
+    participant UC as UseCase
+    participant REPO as Repository
+    
+    UI->>CMD: execute(params)
+    CMD->>CMD: set running = true
+    CMD->>CMD: notifyListeners()
+    UI->>UI: Show loading
+    CMD->>VM: call private method
+    VM->>UC: execute operation
+    UC->>REPO: access data
+    REPO-->>UC: return result
+    UC-->>VM: return ResultApp
+    VM-->>CMD: return ResultApp
+    CMD->>CMD: set result & running = false
+    CMD->>CMD: notifyListeners()
+    UI->>UI: React to result (navigate/error)
+```
+
+## 🧩 Injeção de Dependências
+
+### Configuração (GetIt)
+```dart
+// injector.dart
+Future<void> setupInjector(ApiConfig apiConfig) async {
+  i.addSingleton<ApiConfig>(apiConfig);
+  await _injectServices(apiConfig);
+  await _injectRepositories();
+  await _injectUseCases();
+  await _injectViewModels();
+}
+
+// Services
+Future<void> _injectServices(ApiConfig apiConfig) async {
+  final prefs = await SharedPreferences.getInstance();
+  i.addLazySingleton<SharedPreferencesService>(
+    () => SharedPreferencesService(prefs),
+  );
+  
+  i.addLazySingleton<MedplusApi>(
+    () => MedplusApi(dio: _buildBasicDio(apiConfig)),
+  );
+}
+
+// Repositories - Estrutura modular por feature
+Future<void> _injectRepositories() async {
+  // Auth Repository
+  i.addLazySingleton<AuthRepository>(
+    () => AuthRepositoryRemote(i(), i()),
+  );
+  
+  // Agendamentos Repository  
+  i.addLazySingleton<AgendamentosRepository>(
+    () => AgendamentosRepositoryRemote(i()),
+  );
+  
+  // Clinicas Repository
+  i.addLazySingleton<ClinicasRepository>(
+    () => ClinicasRepositoryRemote(i()),
+  );
+}
+
+// UseCases
+Future<void> _injectUseCases() async {
+  i.addLazySingleton<LoginUseCase>(() => LoginUseCase(i()));
+  i.addLazySingleton<GetUserUsecase>(() => GetUserUsecase(i()));
+}
+
+// ViewModels
+Future<void> _injectViewModels() async {
+  i.addLazySingleton(() => AuthViewModel(i(), i(), i()));
+}
+```
+
+## 🗺️ Navegação (GoRouter)
+
+### Configuração de Rotas
+```dart
+GoRouter routerConfig = GoRouter(
+  redirect: _redirect,
+  refreshListenable: injector<AuthRepository>(), // Repository reativo
+  initialLocation: AppRoutes.splash,
+  routes: [
+    GoRoute(
+      name: AppRoutes.login,
+      path: AppRoutes.login,
+      builder: (context, state) => LoginPage(authViewModel: injector()),
+    ),
+    GoRoute(
+      name: AppRoutes.homePage,
+      path: AppRoutes.homePage,
+      builder: (context, state) => InitialPage(authController: injector()),
+    ),
+  ],
+);
+```
+
+### Proteção de Rotas
+```dart
+Future<String?> _redirect(BuildContext context, GoRouterState state) async {
+  // Repository com ChangeNotifier notifica automaticamente mudanças
+  final loggedIn = injector<AuthRepository>().user != null;
+  final loggingIn = state.matchedLocation == AppRoutes.login;
+  
+  if (!loggedIn && !loggingIn) {
+    return AppRoutes.login; // Redirecionar para login
+  }
+  
+  if (loggingIn && loggedIn) {
+    return AppRoutes.homePage; // Já logado, ir para home
+  }
+  
+  return null; // Não redirecionar
+}
+```
+
+## 🧪 Testing
 
 ### Estrutura de Testes
 ```
 test/
-├── unit/                          # Testes unitários
-│   ├── controllers/               # Testes de controllers
-│   ├── logic/                     # Testes de lógica de negócio
-│   └── services/                  # Testes de serviços
-├── widget/                        # Testes de widgets
-├── integration/                   # Testes de integração
-└── mock/                          # Mocks e dados de teste
+├── unit/                    # Testes unitários
+│   ├── usecases/           # Testes dos UseCases
+│   ├── repositories/       # Testes dos repositórios
+│   └── viewmodels/         # Testes dos ViewModels
+├── integration/            # Testes de integração
+└── mock/                   # Mocks para testes
 ```
 
-### Estratégia de Testes
-- **Unit Tests**: Lógica de negócio e controllers
-- **Widget Tests**: Componentes de UI
-- **Integration Tests**: Fluxos completos
-- **Mocking**: Usando Mockito para dependências
-
-**Exemplo de Teste**:
+### Exemplo de Teste UseCase
 ```dart
-group('AuthController Tests', () {
-  late AuthController controller;
-  late MockAuthLogic mockAuthLogic;
-
-  setUp(() {
-    mockAuthLogic = MockAuthLogic();
-    controller = AuthController(mockAuthLogic);
+void main() {
+  group('LoginUseCase', () {
+    late LoginUseCase useCase;
+    late MockAuthRepository mockRepository;
+    late MockLocalStorage mockStorage;
+    
+    setUp(() {
+      mockRepository = MockAuthRepository();
+      mockStorage = MockLocalStorage();
+      useCase = LoginUseCase(mockRepository, mockStorage);
+    });
+    
+    test('deve retornar sucesso quando login for válido', () async {
+      // Arrange
+      when(mockRepository.login(any, any))
+          .thenAnswer((_) async => Success(mockUser));
+      
+      // Act
+      final result = await useCase.execute('test@test.com', '123456');
+      
+      // Assert
+      expect(result.isSuccess, true);
+      verify(mockStorage.setAccessToken(any)).called(1);
+    });
   });
-
-  test('should update state to LoggedIn when login succeeds', () async {
-    // Arrange
-    when(mockAuthLogic.login(any))
-        .thenAnswer((_) async => Success(mockUser));
-
-    // Act
-    await controller.login(loginDto);
-
-    // Assert
-    expect(controller.state, isA<LoggedInState>());
-  });
-});
-```
-
----
-
-## 🚀 Deploy e CI/CD
-
-### Ambientes
-- **Development**: Configuração local
-- **Staging**: Ambiente de testes
-- **Production**: Ambiente de produção
-
-### Build Configuration
-```dart
-// main_staging.dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await setupInjector(StagingApi());
-  runApp(const MyApp());
-}
-
-// main.dart (production)
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await setupInjector(ProductionApi());
-  runApp(const MyApp());
 }
 ```
 
-### Configuração Android
-- **Gradle**: 8.11.1
-- **Kotlin**: 2.1.0
-- **Java**: 17
-- **Android Gradle Plugin**: 8.7.3
+## 🚀 Vantagens da App Architecture
 
----
+### ✅ Benefícios
 
-## 📈 Métricas e Monitoramento
+1. **Modularização por Features**
+   - Cada feature tem sua própria pasta
+   - ViewModels específicos por tela/funcionalidade
+   - Widgets reutilizáveis
 
-### Performance
-- **Build Time**: ~2-3 minutos
-- **App Size**: Target < 50MB
-- **Startup Time**: Target < 3 segundos
+2. **Fonte Única da Verdade com Reatividade**
+   - Repositories com ChangeNotifier para mudanças automáticas
+   - Estado gerenciado pelos Repositories
+   - Cache em SharedPreferences com acesso tipado
+   - Sincronização automática entre UI e dados
 
-### Logging
+3. **Reutilização com UseCases**
+   - Lógica complexa isolada em UseCases
+   - Múltiplos repositórios em um local
+   - Fácil testabilidade
+
+4. **Reatividade com ViewModels e Commands**
+   - Estado reativo com ChangeNotifier
+   - Commands para operações com estado automático
+   - UI atualizada automaticamente via ListenableBuilder
+   - Ciclo de vida gerenciado pelo Flutter
+
+### 🎯 Quando Usar Cada Componente
+
+| Componente | Quando Usar | Exemplo |
+|------------|-------------|---------|
+| **Command** | Operações UI com estado (loading/resultado) | `loginCommand.execute()` |
+| **UseCase** | Lógica complexa, múltiplos repos, reutilização | `LoginUseCase(authRepo, storage)` |
+| **Repository** | Sempre - fonte única da verdade | `AuthRepository.login()` |
+| **Service** | Acesso a dados externos (API, DB, Storage) | `MedplusApi.post('/login')` |
+| **ViewModel** | Estado reativo por feature/tela | `AuthViewModel` com Commands |
+
+## � Migração: ObjectBox → SharedPreferences
+
+### 📋 O que mudou
+
+O projeto **migrou de ObjectBox para SharedPreferences** para simplificar a arquitetura e remover dependências de banco de dados complexo.
+
+#### ❌ Antes (ObjectBox)
 ```dart
-// Interceptor para logging de requisições
-dio.interceptors.add(LogInterceptor(
-  responseBody: true,
-  requestBody: true,
-  logPrint: (object) => logger.d(object),
-));
-```
+// Complexidade desnecessária
+Store db = await getDbInstance(directory);
+i.addLazySingleton<IClinicaRepository>(() => ClinicaRepository(db.box()));
 
----
-
-## 🔄 Versionamento e Migrations
-
-### Database Migrations
-ObjectBox migrations para mudanças de schema:
-
-```dart
-// Exemplo de migration
+// Anotações específicas
 @Entity()
 class User {
   @Id()
   int id = 0;
-  
-  String nome;
-  String token;
-  String refreshToken; // Campo adicionado em v2
+  String name;
+  // ...
 }
 ```
 
-### API Versioning
-Suporte a múltiplas versões da API:
-
+#### ✅ Agora (SharedPreferences)
 ```dart
-class ApiConfig {
-  final String apiUrl;
-  final String version;
+// Simplicidade máxima
+i.addLazySingleton<SharedPreferencesService>(
+  () => SharedPreferencesService(prefs),
+);
+
+// POJOs simples
+class User {
+  final String id;
+  final String name;
+  // ...
   
-  String get baseUrl => '$apiUrl/$version';
+  factory User.fromJson(Map<String, dynamic> json) => User(/*...*/);
+  Map<String, dynamic> toJson() => {/*...*/};
 }
 ```
+
+### 🗂️ Arquivos removidos/alterados
+
+**Removidos:**
+- ❌ `lib/objectbox.g.dart`
+- ❌ `lib/objectbox-model.json`
+- ❌ `lib/data/config/database_config.dart`
+- ❌ Dependências: `objectbox`, `objectbox_flutter_libs`, `objectbox_generator`
+
+**Alterados:**
+- ✅ `lib/data/repositories/auth_repository.dart` - Usa SharedPreferences
+- ✅ `lib/data/services/shared_preferences_service.dart` - Service completo
+- ✅ `lib/infrastructure/dependencies/injector.dart` - Sem ObjectBox
+
+### 🎯 Benefícios da Migração
+
+1. **Simplicidade**: Sem configuração de banco complexo
+2. **Performance**: Acesso direto ao storage nativo
+3. **Confiabilidade**: SharedPreferences é battle-tested
+4. **Manutenibilidade**: Menos código, menos bugs
+5. **Size**: APK menor sem bibliotecas ObjectBox
 
 ---
 
-## � Refatorações Implementadas
-
-### 1. **Controller → ViewModel Migration**
-
-#### ❌ **Antes (Legacy Controllers)**
-```dart
-class AgendamentosController extends StateNotifier {
-  // Lógica complexa misturada
-  // Estados difíceis de testar
-  // Múltiplas responsabilidades
-}
-```
-
-#### ✅ **Depois (ViewModels com Commands)**
-```dart
-class AgendamentosViewModel extends ChangeNotifier {
-  // Commands para operações específicas
-  late final Command0 carregarAgendamentosAutomatico;
-  late final Command1<DateTime, void> selecionarData;
-  
-  // Injeção de dependências clara
-  AgendamentosViewModel(
-    this._getAgendamentosUseCase,
-    this._atualizarDataUseCase,
-    this._limparAgendamentosUseCase,
-    this._getClinicaSelecionadaUseCase,
-    this._agendamentosRepository,
-  ) {
-    // Configuração dos commands
-  }
-}
-```
-
-### 2. **StateBuilder → ReactiveBuilder Migration**
-
-#### ❌ **Antes (StateBuilder em todas as páginas)**
-```dart
-StateBuilder<AgendamentosController>(
-  builder: (context, controller) {
-    // Widgets rebuilt desnecessariamente
-    // Performance impactada
-  },
-)
-```
-
-#### ✅ **Depois (ReactiveBuilder otimizado)**
-```dart
-ReactiveBuilder(
-  builder: (context) {
-    final viewModel = context.read<AgendamentosViewModel>();
-    // Rebuilds otimizados
-    // Melhor performance
-  },
-)
-```
-
-**📋 Regra**: StateBuilder **SOMENTE** em validadores de formulário.
-
-### 3. **API Service Consolidation**
-
-#### ❌ **Antes (Múltiplos serviços)**
-```dart
-// Múltiplos serviços com Dio próprio
-class AgendamentosApiService {
-  final Dio _dio;
-  // Duplicação de configuração
-}
-
-class PacientesApiService {
-  final Dio _dio;
-  // Configurações inconsistentes
-}
-```
-
-#### ✅ **Depois (MedplusApi centralizado)**
-```dart
-class MedplusApi {
-  final Dio _dio; // Dio único com interceptors
-
-  Future<Result<LoginResponse>> login(LoginDto loginDto) async {}
-  Future<Result<List<Agendamento>>> getAgendamentosDoDia() async {}
-  Future<Result<Map<String, String>>> refreshToken() async {}
-  // Todos os métodos de API centralizados
-}
-```
-
-### 4. **Repository Isolation Rules**
-
-#### ❌ **Antes (Dependências entre repositórios)**
-```dart
-class AgendamentosRepository {
-  final ClinicasRepository _clinicasRepo; // ❌ Violação
-  final PacientesRepository _pacientesRepo; // ❌ Violação
-}
-```
-
-#### ✅ **Depois (Isolamento completo)**
-```dart
-class AgendamentosRepository {
-  final MedplusApi _medplusApi; // ✅ Apenas serviços externos
-  // ❌ NUNCA outros repositórios
-}
-
-// Regra: Repositórios NÃO podem depender de outros repositórios
-```
-
-### 5. **Dependency Injection via Router**
-
-#### ❌ **Antes (Service Locator pattern)**
-```dart
-class AgendamentosPage extends StatelessWidget {
-  Widget build(context) {
-    final viewModel = GetIt.instance<AgendamentosViewModel>(); // ❌
-    // Dependências implícitas
-  }
-}
-```
-
-#### ✅ **Depois (Explicit DI via Routes)**
-```dart
-// No router_config.dart
-GoRoute(
-  path: '/agendamentos',
-  builder: (context, state) => AgendamentosPage(
-    viewModel: AgendamentosViewModel(
-      GetIt.instance(), // Explicit dependencies
-      GetIt.instance(),
-      GetIt.instance(),
-    ),
-  ),
-)
-
-class AgendamentosPage extends StatelessWidget {
-  final AgendamentosViewModel viewModel;
-  const AgendamentosPage({required this.viewModel}); // ✅ Explicit
-}
-```
-
-### 6. **UseCase Optimization**
-
-#### 📋 **Regras Fundamentais dos UseCases:**
-
-**1. UseCases SOMENTE quando atender uma ou mais condições específicas**
-**2. UseCases NÃO devem executar outros UseCases**
-**3. UseCases NÃO devem receber outros UseCases por injeção de dependências**
-
-#### ✅ **Criar UseCases APENAS quando uma ou mais das condições existir:**
-
-**🔀 Condição 1: Precisa combinar dados de múltiplos repositórios**
-```dart
-// ✅ UseCase NECESSÁRIO - combina dados de vários repositórios
-class ProcessarAgendamentoCompletoUseCase {
-  final AgendamentosRepository _agendamentosRepo;
-  final PacientesRepository _pacientesRepo;
-  final ClinicasRepository _clinicasRepo;
-  
-  Future<Result<AgendamentoCompleto>> execute(int id) async {
-    // Combina dados de 3 repositórios diferentes
-    final agendamento = await _agendamentosRepo.getById(id);
-    final paciente = await _pacientesRepo.getById(agendamento.pacienteId);
-    final clinica = await _clinicasRepo.getById(agendamento.clinicaId);
-    
-    return AgendamentoCompleto.combinar(agendamento, paciente, clinica);
-  }
-}
-```
-
-**🧠 Condição 2: Lógica excessivamente complexa**
-```dart
-// ✅ UseCase NECESSÁRIO - lógica muito complexa
-class CalcularEstatisticasAvancadasUseCase {
-  Future<Result<EstatisticasCompletas>> execute() async {
-    // Múltiplos cálculos complexos
-    final dados = await _agendamentosRepo.getTodosAgendamentos();
-    
-    // Algoritmos complexos de análise
-    final mediaTempoEspera = _calcularMediaComVariancia(dados);
-    final tendencias = _analisarTendenciasTrimestre(dados);
-    final predicoes = _gerarPredicoesMachineLearning(dados);
-    
-    return EstatisticasCompletas(mediaTempoEspera, tendencias, predicoes);
-  }
-}
-```
-
-**♻️ Condição 3: Lógica reutilizada por diferentes ViewModels**
-```dart
-// ✅ UseCase NECESSÁRIO - reutilização entre múltiplos ViewModels
-class ValidarAgendamentoDisponivelUseCase {
-  Future<Result<bool>> execute(DateTime data, int medicoId) async {
-    // Lógica complexa de validação de disponibilidade
-    // Usada por: AgendamentosViewModel, CalendarioViewModel, RelatóriosViewModel
-    final conflitos = await _verificarConflitos(data, medicoId);
-    final restricoes = await _verificarRestricoesMedico(medicoId);
-    final limitesHorario = await _verificarLimitesHorario(data);
-    
-    return _validarDisponibilidade(conflitos, restricoes, limitesHorario);
-  }
-}
-```
-
-#### ❌ **NÃO criar UseCases quando:**
-- **Operação simples de CRUD** (buscar, salvar, deletar)
-- **Chamada direta para um único repository**
-- **Transformação simples de dados**
-- **Lógica usada apenas por um ViewModel**
-
-#### ❌ **ANTI-PATTERN - UseCase desnecessário:**
-```dart
-// ❌ DESNECESSÁRIO - operação simples, apenas um repositório
-class GetAgendamentosUseCase {
-  final AgendamentosRepository _repository;
-  
-  Future<Result<List<Agendamento>>> execute() async {
-    return await _repository.getAgendamentos(); // Simples demais!
-  }
-}
-
-// ✅ FAZER DIRETO no ViewModel
-class AgendamentosViewModel extends ChangeNotifier {
-  Future<void> _carregarAgendamentos() async {
-    final result = await _agendamentosRepository.getAgendamentos();
-    // Direto e simples
-  }
-}
-```
-
-#### ❌ **PROIBIDO - UseCase chamando outro UseCase:**
-```dart
-// ❌ ERRADO - UseCase não deve depender de outro UseCase
-class SearchPacientesUseCase {
-  final PacientesRepository _repository;
-  final GetClinicaSelecionadaUseCase _getClinicaUseCase; // ❌ PROIBIDO
-  
-  Future<Result<List<Paciente>>> execute() async {
-    final clinica = _getClinicaUseCase.execute(); // ❌ UseCase chamando UseCase
-    return await _repository.searchPacientes(clinica.id);
-  }
-}
-```
-
-#### ✅ **CORRETO - ViewModel chamando Repository diretamente:**
-```dart
-// ✅ CORRETO - ViewModel fala diretamente com repositories
-class SearchPacientesViewModel extends ChangeNotifier {
-  final PacientesRepository _pacientesRepository;
-  final ClinicasRepository _clinicasRepository;
-  
-  Future<void> _buscarPacientes(String query) async {
-    // ✅ Direto para os repositories - sem UseCase desnecessário
-    final clinica = await _clinicasRepository.getClinicaSelecionada();
-    final pacientes = await _pacientesRepository.searchPacientes(query, clinica.id);
-    
-    // Atualizar estado do ViewModel
-  }
-}
-```
-
-#### 📝 **Resumo das Condições para UseCases:**
-
-**✅ CRIAR UseCase quando:**
-1. **🔀 Múltiplos Repositórios**: Precisa combinar dados de 2+ repositórios
-2. **🧠 Lógica Complexa**: Algoritmos/cálculos excessivamente complexos
-3. **♻️ Reutilização**: Lógica usada por 2+ ViewModels diferentes
-
-**❌ NÃO CRIAR UseCase quando:**
-- Operação simples com 1 repositório → **ViewModel fala direto com Repository**
-- Lógica simples de transformação → **Fazer no próprio ViewModel**
-- Usado apenas por 1 ViewModel → **Manter lógica no ViewModel**
-
-#### 📊 **Decisão: Criar UseCase ou não?**
-
-```
-Precisa de múltiplos repositórios? ────┐
-                                       │
-Lógica é excessivamente complexa? ─────┼──── ✅ SIM → Criar UseCase
-                                       │
-Será reutilizada por 2+ ViewModels? ───┘
-
-                                       
-Nenhuma condição acima? ───────────────────── ❌ NÃO → ViewModel → Repository
-```
-
-#### 📝 **Justificativa das Regras:**
-- **Isolamento**: Cada UseCase tem responsabilidade única
-- **Testabilidade**: Mocks mais simples e testes isolados
-- **Manutenibilidade**: Dependências claras e diretas
-- **Performance**: Evita chains desnecessárias de execução
-
-### 7. **Refresh Token System**
-
-#### ✅ **Sistema Automático Implementado**
-```dart
-// Interceptor no Dio principal
-onError: (error, handler) async {
-  if (error.response?.statusCode == 401) {
-    // 1. Pega refreshToken
-    // 2. Chama MedplusApi.refreshToken()
-    // 3. Atualiza tokens
-    // 4. Refaz requisição original
-    // 5. Transparente para o usuário
-  }
-}
-```
+- [Official Flutter App Architecture](https://docs.flutter.dev/app-architecture)
+- [MVVM Pattern in Flutter](https://flutter.dev/docs/development/data-and-backend/state-mgmt)
+- [ChangeNotifier Documentation](https://api.flutter.dev/flutter/foundation/ChangeNotifier-class.html)
+- [GoRouter Documentation](https://docs.flutter.dev/ui/navigation)
 
 ---
 
-## 📊 Benefícios das Refatorações
-
-### 🚀 **Performance**
-- ReactiveBuilder otimizado vs StateBuilder
-- Commands para operações específicas
-- Dio centralizado com cache e interceptors
-
-### 🧪 **Testabilidade**
-- ViewModels com injeção explícita
-- Commands isolados e testáveis
-- Repositórios sem dependências cruzadas
-
-### 🛠️ **Manutenibilidade**
-- Nomenclatura consistente (ViewModels)
-- API centralizada (MedplusApi)
-- Isolamento entre camadas
-
-### 🔒 **Robustez**
-- Refresh token automático
-- Tratamento de erros centralizado
-- Fallbacks para casos de falha
-
----
-
-## �📚 Documentação Adicional
-
-### Links Úteis
-- [Flutter Documentation](https://flutter.dev/docs)
-- [GoRouter Guide](https://docs.page/csells/go_router)
-- [ObjectBox Flutter](https://docs.objectbox.io/flutter)
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-
-### Contribuição
-Para contribuir com o projeto:
-1. Fork o repositório
-2. Crie uma branch feature (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
-
----
-
-**Última atualização**: Julho 2025  
-**Versão da documentação**: 1.0  
-**Mantenedores**: Equipe de Desenvolvimento App MP Prof
+**Última atualização**: Janeiro 2025  
+**Versão da Arquitetura**: App Architecture (Google/Flutter)  
+**Padrão Principal**: MVVM com ChangeNotifier + Commands
